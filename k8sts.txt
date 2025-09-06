@@ -1,0 +1,161 @@
+TS STEPS
+
+After Helm installing in the master node. The Cluster was getting effected. Install helm via snap install helm
+
+Reset and Reinitialize the Cluster
+If you're okay with starting fresh, run:
+
+bash
+sudo kubeadm reset
+sudo rm -rf /etc/kubernetes /var/lib/etcd ~/.kube
+Then re-run:
+
+bash
+sudo kubeadm init
+After successful init, configure kubectl:
+
+bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+🔍 Option 2: Check If the Cluster Is Already Running
+Instead of reinitializing, check if Kubernetes is already active:
+
+bash
+ps aux | grep kube-apiserver
+sudo systemctl status kubelet
+kubectl get nodes
+If kubectl still fails, make sure your config is pointing to the right cluster:
+
+bash
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl get nodes
+⚠️ Option 3: Force Init (Not Recommended)
+You can bypass the errors with:
+
+bash
+sudo kubeadm init --ignore-preflight-errors=all
+But this is risky unless you know exactly what you're overriding. It’s better to clean up and start fresh.
+
+Let me know if you want to reset the cluster, inspect the current setup, or install a lightweight local cluster like Minikube or Kind.2
+
+1github.com
+2github.com
+3github.com
+ubuntu@ip-172-31-39-181:~/Secure_Resillient_K8s_Test$ sudo rm -rf /etc/kubernetes /var/lib/etcd ~/.kube ubuntu@ip-172-31-39-181:~/Secure_Resillient_K8s_Test$ sudo kubeadm init I0906 00:09:45.709461 18536 version.go:256] remote version is much newer: v1.34.0; falling back to: stable-1.30 [init] Using Kubernetes version: v1.30.14 [preflight] Running pre-flight checks [preflight] Pulling images required for setting up a Kubernetes cluster [preflight] This might take a minute or two, depending on the speed of your internet connection [preflight] You can also perform this action in beforehand using 'kubeadm config images pull' W0906 00:09:45.940498 18536 checks.go:844] detected that the sandbox image "registry.k8s.io/pause:3.8" of the container runtime is inconsistent with that used by kubeadm.It is recommended to use "registry.k8s.io/pause:3.9" as the CRI sandbox image. [certs] Using certificateDir folder "/etc/kubernetes/pki" [certs] Generating "ca" certificate and key [certs] Generating "apiserver" certificate and key [certs] apiserver serving cert is signed for DNS names [kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local master-172-31-39-181] and IPs [10.96.0.1 172.31.39.181] [certs] Generating "apiserver-kubelet-client" certificate and key [certs] Generating "front-proxy-ca" certificate and key [certs] Generating "front-proxy-client" certificate and key [certs] Generating "etcd/ca" certificate and key [certs] Generating "etcd/server" certificate and key [certs] etcd/server serving cert is signed for DNS names [localhost master-172-31-39-181] and IPs [172.31.39.181 127.0.0.1 ::1] [certs] Generating "etcd/peer" certificate and key [certs] etcd/peer serving cert is signed for DNS names [localhost master-172-31-39-181] and IPs [172.31.39.181 127.0.0.1 ::1] [certs] Generating "etcd/healthcheck-client" certificate and key [certs] Generating "apiserver-etcd-client" certificate and key [certs] Generating "sa" key and public key [kubeconfig] Using kubeconfig folder "/etc/kubernetes" [kubeconfig] Writing "admin.conf" kubeconfig file [kubeconfig] Writing "super-admin.conf" kubeconfig file [kubeconfig] Writing "kubelet.conf" kubeconfig file [kubeconfig] Writing "controller-manager.conf" kubeconfig file [kubeconfig] Writing "scheduler.conf" kubeconfig file [etcd] Creating static Pod manifest for local etcd in "/etc/kubernetes/manifests" [control-plane] Using manifest folder "/etc/kubernetes/manifests" [control-plane] Creating static Pod manifest for "kube-apiserver" [control-plane] Creating static Pod manifest for "kube-controller-manager" [control-plane] Creating static Pod manifest for "kube-scheduler" [kubelet-start] Writing kubelet environment file with flags to file "/var/lib/kubelet/kubeadm-flags.env" [kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml" [kubelet-start] Starting the kubelet [wait-control-plane] Waiting for the kubelet to boot up the control plane as static Pods from directory "/etc/kubernetes/manifests" [kubelet-check] Waiting for a healthy kubelet at http://127.0.0.1:10248/healthz. This can take up to 4m0s [kubelet-check] The kubelet is healthy after 501.116401ms [api-check] Waiting for a healthy API server. This can take up to 4m0s [api-check] The API server is healthy after 4.001326701s [upload-config] Storing the configuration used in ConfigMap "kubeadm-config" in the "kube-system" Namespace [kubelet] Creating a ConfigMap "kubelet-config" in namespace kube-system with the configuration for the kubelets in the cluster [upload-certs] Skipping phase. Please see --upload-certs [mark-control-plane] Marking the node master-172-31-39-181 as control-plane by adding the labels: [node-role.kubernetes.io/control-plane node.kubernetes.io/exclude-from-external-load-balancers] [mark-control-plane] Marking the node master-172-31-39-181 as control-plane by adding the taints [node-role.kubernetes.io/control-plane:NoSchedule] [bootstrap-token] Using token: o0scc6.ov9g6iuci1go2oz1 [bootstrap-token] Configuring bootstrap tokens, cluster-info ConfigMap, RBAC Roles [bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to get nodes [bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to post CSRs in order for nodes to get long term certificate credentials [bootstrap-token] Configured RBAC rules to allow the csrapprover controller automatically approve CSRs from a Node Bootstrap Token [bootstrap-token] Configured RBAC rules to allow certificate rotation for all node client certificates in the cluster [bootstrap-token] Creating the "cluster-info" ConfigMap in the "kube-public" namespace [kubelet-finalize] Updating "/etc/kubernetes/kubelet.conf" to point to a rotatable kubelet client certificate and key error execution phase addon/coredns: unable to create a new DNS service: Post "https://172.31.39.181:6443/api/v1/namespaces/kube-system/services?timeout=10s": dial tcp 172.31.39.181:6443: connect: connection refused To see the stack trace of this error execute with --v=5 or higher
+You're nearly there! The Kubernetes control plane has mostly initialized successfully, but it's failing at the final step—deploying CoreDNS, which is essential for internal cluster DNS resolution.
+
+⚠️ What’s Causing the Error?
+Code
+error execution phase addon/coredns: unable to create a new DNS service: dial tcp 172.31.39.181:6443: connect: connection refused
+This means the API server became unreachable just as kubeadm tried to deploy CoreDNS. Possible causes:
+
+The API server pod crashed or didn’t start properly.
+
+The kubelet hasn't yet registered the control plane pods.
+
+Networking or firewall rules are blocking port 6443.
+
+✅ Fix It Step-by-Step
+1. Check API Server Pod Status
+bash
+sudo crictl ps -a | grep kube-apiserver
+Or use:
+
+bash
+sudo docker ps -a | grep kube-apiserver  # if using Docker
+2. Check kubelet and container runtime logs
+bash
+sudo journalctl -xeu kubelet
+3. Verify API Server Is Listening
+bash
+curl -k https://localhost:6443/version
+If this fails, the API server isn't running or is misconfigured.
+
+4. Try Restarting kubelet
+bash
+sudo systemctl restart kubelet
+5. Manually Apply CoreDNS
+Once the API server is reachable again:
+
+bash
+kubectl apply -f /etc/kubernetes/manifests/kube-apiserver.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/website/main/content/en/examples/admin/dns/coredns.yaml
+🧠 Pro Tip
+After fixing the API server, don’t forget to set up your kubectl config:
+
+bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+Then test:
+
+bash
+kubectl get nodes
+Let me know what journalctl -xeu kubelet shows or if you'd like help switching to a simpler setup like Minikube for testing Helm charts.
+
+1github.com
+ubuntu@ip-172-31-39-181:~/Secure_Resillient_K8s_Test$ sudo crictl ps -a | grep kube-apiserver WARN[0000] runtime connect using default endpoints: [unix:///run/containerd/containerd.sock unix:///run/crio/crio.sock unix:///var/run/cri-dockerd.sock]. As the default settings are now deprecated, you should set the endpoint instead. WARN[0000] image connect using default endpoints: [unix:///run/containerd/containerd.sock unix:///run/crio/crio.sock unix:///var/run/cri-dockerd.sock]. As the default settings are now deprecated, you should set the endpoint instead. 3bf4f566c9d4e 07d562355feda About a minute ago Running kube-apiserver 6 1e658c3e5e542 kube-apiserver-master-172-31-39-181 e029f78f43d99 07d562355feda About a minute ago Exited kube-apiserver 5 3b25af36a6431 kube-apiserver-master-172-31-39-181
+Thanks for sharing that output—it’s actually a good sign! The kube-apiserver pod is now running, which means your control plane is alive. The earlier error during kubeadm init likely occurred during a brief startup delay.
+
+✅ Next Steps to Finalize Setup
+1. Configure kubectl Access
+Run these commands to set up your kubeconfig:
+
+bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+2. Verify Cluster Status
+bash
+kubectl get nodes
+kubectl get pods -n kube-system
+You should see your control-plane node listed and system pods initializing.
+
+🧩 If CoreDNS Is Still Missing
+If kubectl get pods -n kube-system shows no coredns pods, manually apply it:
+
+bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/website/main/content/en/examples/admin/dns/coredns.yaml
+🧠 Pro Tip: Install a Pod Network
+Your cluster won’t schedule pods until a network plugin is installed. For example, to install Calico:
+
+bash
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+Then remove the control-plane taint if you want to run workloads on this node:
+
+bash
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+Let me know what kubectl get pods -n kube-system shows or if you want help deploying your first Helm chart now that your cluster is up.
+
+1github.com
+In my old connected worker node when i am connecting it using the Join command it is throwing error ubuntu@worker-172-31-42-32:~$ sudo kubeadm join 172.31.39.181:6443 --token wmujvx.pc61kf2wddf1f70g --discovery-token-ca-cert-hash sha256:7f63a43cc38b6d19b48467d8dd7f37cce6d7aac2aaa18d14a1d8d67f91e24bb2 [preflight] Running pre-flight checks error execution phase preflight: [preflight] Some fatal errors occurred: [ERROR FileAvailable--etc-kubernetes-kubelet.conf]: /etc/kubernetes/kubelet.conf already exists [ERROR Port-10250]: Port 10250 is in use [ERROR FileAvailable--etc-kubernetes-pki-ca.crt]: /etc/kubernetes/pki/ca.crt already exists [preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...` To see the stack trace of this error execute with --v=5 or higher
+This error means your worker node was previously part of a Kubernetes cluster, and remnants of that setup are still present—blocking the new kubeadm join attempt.
+
+🧹 Fix It: Reset the Worker Node
+To clean up the old configuration and prepare the node for joining again:
+
+1. Reset kubeadm
+bash
+sudo kubeadm reset
+This removes cluster-specific configuration and stops the kubelet.
+
+2. Clean Up Residual Files
+bash
+sudo rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd /etc/cni /opt/cni ~/.kube
+3. Restart kubelet
+bash
+sudo systemctl restart kubelet
+4. Re-run the Join Command
+Now retry:
+
+bash
+sudo kubeadm join 172.31.39.181:6443 --token wmujvx.pc61kf2wddf1f70g --discovery-token-ca-cert-hash sha256:7f63a43cc38b6d19b48467d8dd7f37cce6d7aac2aaa18d14a1d8d67f91e24bb2
+✅ After Joining
+Verify the node is connected:
+
+bash
+kubectl get nodes
+You should see your worker node listed as Ready.
+
+Let me know if you want to automate this setup across multiple nodes or configure Helm deployments once your cluster is stable.
