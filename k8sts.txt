@@ -159,3 +159,37 @@ kubectl get nodes
 You should see your worker node listed as Ready.
 
 Let me know if you want to automate this setup across multiple nodes or configure Helm deployments once your cluster is stable.
+
+
+
+
+Rejoin Nodes to Master (Post-Restart)
+✅ Step 1: Reset the Node
+On each worker node:
+
+bash
+sudo kubeadm reset --force
+sudo rm -rf /etc/kubernetes/*
+This clears old configs and certificates that might block rejoining.
+
+✅ Step 2: Generate Join Command on Master
+On your master node:
+
+bash
+kubeadm token create --print-join-command
+This will output something like:
+
+bash
+kubeadm join <master-ip>:6443 --token abcdef.1234567890abcdef \
+  --discovery-token-ca-cert-hash sha256:<hash>
+✅ Step 3: Run Join Command on Worker Nodes
+Copy and run the above command on each worker node:
+
+bash
+sudo kubeadm join <master-ip>:6443 --token ... --discovery-token-ca-cert-hash ...
+✅ Step 4: Verify Node Status
+Back on the master:
+
+bash
+kubectl get nodes
+You should see the nodes appear as Ready within a minute or two.
